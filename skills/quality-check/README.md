@@ -7,13 +7,13 @@
 ## 30-Second Setup
 
 ```bash
-cp -r skills/code-quality-check ~/.snowflake/cortex/skills/
+cp -r skills/quality-check ~/.snowflake/cortex/skills/
 ```
 
 Then in Cortex Code:
 
 ```
-/skill code-quality-check
+/skill quality-check
 ```
 
 or simply: *"Run code quality checks"*
@@ -103,14 +103,14 @@ See `.cortex-config-example.json` in this skill for a full example.
 
 ```bash
 #!/bin/bash
-cortex chat --message "Run code quality checks" --skill code-quality-check
+cortex chat --message "Run code quality checks" --skill quality-check
 [ $? -eq 0 ] || exit 1
 ```
 
 **CI (e.g. GitHub Actions):**
 
 ```yaml
-- run: cortex chat --message "Run code quality checks" --skill code-quality-check
+- run: cortex chat --message "Run code quality checks" --skill quality-check
 ```
 
 **VS Code task:** Add a shell task that runs the same `cortex chat` command.
@@ -135,5 +135,5 @@ A: Ensure `.cortex/` exists, is writable, and `metrics.enabled: true` in config.
 
 ## Related Skills
 
-- **multi-env-deployment** — Run quality checks before deploying
-- **snowflake-diagnostics** — For Snowflake environment issues
+- **deploy-multi-env** — Run quality checks before deploying
+- **snowflake-diagnose** — For Snowflake environment issues

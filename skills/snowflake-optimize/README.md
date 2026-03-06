@@ -7,7 +7,7 @@
 ## Install
 
 ```bash
-cp -r skills/snowflake-performance-analysis ~/.snowflake/cortex/skills/
+cp -r skills/snowflake-optimize ~/.snowflake/cortex/skills/
 ```
 
 **Invoke with:** *"Why is this query slow?"*, *"Optimize warehouse sizing"*, *"Analyze query performance"*, *"Reduce Snowflake costs"*
@@ -103,5 +103,5 @@ Filter by `start_time` and `warehouse_name` to narrow scope.
 
 ## Related Skills
 
-- **snowflake-diagnostics** — Connection and permission issues
-- **code-quality-check** — Validate SQL before running
+- **snowflake-diagnose** — Connection and permission issues
+- **quality-check** — Validate SQL before running

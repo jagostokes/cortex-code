@@ -7,7 +7,7 @@
 ## Install
 
 ```bash
-cp -r skills/multi-env-deployment ~/.snowflake/cortex/skills/
+cp -r skills/deploy-multi-env ~/.snowflake/cortex/skills/
 ```
 
 **Invoke with:** *"Deploy to prod"*, *"Promote to staging"*, *"Deploy this Streamlit app across environments"*
@@ -112,5 +112,5 @@ VERDICT: ✅ DEPLOYED
 
 ## Related Skills
 
-- **snowflake-diagnostics** — Debug connection/permission issues during deployment
-- **code-quality-check** — Run before deploying to catch issues early
+- **snowflake-diagnose** — Debug connection/permission issues during deployment
+- **quality-check** — Run before deploying to catch issues early

@@ -7,7 +7,7 @@
 ## Install
 
 ```bash
-cp -r skills/snowflake-diagnostics ~/.snowflake/cortex/skills/
+cp -r skills/snowflake-diagnose ~/.snowflake/cortex/skills/
 ```
 
 **Invoke with:** *"Debug my Snowflake connection"*, *"Permission denied"*, *"Check Snowflake environment"*, *"Warehouse not responding"*
@@ -69,7 +69,7 @@ RECOMMENDED: Run the GRANT above; consider auto-suspend 300s for better caching
 ## Troubleshooting the Skill
 
 **Skill not activating?**  
-Verify: `ls ~/.snowflake/cortex/skills/snowflake-diagnostics/SKILL.md`
+Verify: `ls ~/.snowflake/cortex/skills/snowflake-diagnose/SKILL.md`
 
 **SHOW commands fail?**  
 You may need `IMPORTED PRIVILEGES` on `SNOWFLAKE`:
@@ -85,5 +85,5 @@ Increase session timeout: `ALTER SESSION SET STATEMENT_TIMEOUT_IN_SECONDS = 600;
 
 ## Related Skills
 
-- **snowflake-performance-analysis** — When queries are slow or expensive
-- **multi-env-deployment** — When deployment fails and you need to debug
+- **snowflake-optimize** — When queries are slow or expensive
+- **deploy-multi-env** — When deployment fails and you need to debug
