@@ -1,6 +1,6 @@
 ---
 name: session-cost-analysis
-description: "Analyze Cortex Code CLI session costs with detailed token tracking. Use when: analyzing costs, checking token usage, reviewing session expenses, comparing model costs, tracking spending. Triggers: session cost, token usage, how much did this cost, analyze costs, cost breakdown, session expenses, token tracking."
+description: "Analyze Cortex Code CLI session costs with automatic Haiku/Sonnet/Opus comparison. Use when: analyzing costs, checking token usage, comparing models, reviewing session expenses, tracking spending. Triggers: session cost, token usage, how much did this cost, analyze costs, cost breakdown, session expenses, compare models, opus vs sonnet."
 ---
 
 # Session Cost Analysis
@@ -31,79 +31,50 @@ What would you like to analyze?
 1. Current session only
 2. Specific session by ID
 3. All sessions (historical view)
-4. Last N sessions
 
-Please select (1-4):
+Please select (1-3):
 ```
 
 **Capture:**
 - Scope selection
 - Session ID (if specific session)
-- Number of sessions (if limited historical)
 
 **⚠️ STOP**: Wait for user response before proceeding.
 
-### Step 2: Detect Model Used
+### Step 2: Run Cost Analysis with Model Comparison
 
-**Determine** which model was used in the session(s):
-
-1. **Check** session metadata for model info
-2. **Default** to `claude-sonnet-4-5` if not specified
-3. **Ask** user if model detection fails:
-   ```
-   Which model was used?
-   
-   1. claude-sonnet-4-5 (default)
-   2. claude-opus-4-5
-   3. claude-haiku-4-5
-   ```
-
-**Note:** Model affects pricing:
-- **Sonnet**: $3/$15/$0.30 per 1M tokens (input/output/cache)
-- **Opus**: $15/$75/$1.50 per 1M tokens (premium)
-- **Haiku**: $0.80/$4/$0.08 per 1M tokens (fast)
-
-### Step 3: Run Cost Analysis
-
-**Execute** the analysis script using `uv`:
+**Execute** the analysis script - it will automatically show costs for all three models (Haiku/Sonnet/Opus):
 
 ```bash
-# For current/most recent session
-uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py \\
-  --model <model_name>
+# For current/most recent session (shows all model comparisons)
+uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py
 
 # For specific session
 uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py \\
-  --session <session_id> \\
-  --model <model_name>
+  --session <session_id>
 
-# For all sessions (historical)
+# For all sessions (historical with model comparison)
 uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py \\
-  --all \\
-  --model <model_name>
-
-# With detailed tool breakdown
-uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py \\
-  --breakdown \\
-  --model <model_name>
+  --all
 ```
 
 **What the script does:**
-1. Locates Cortex Code session logs
-2. Reads session transcript (JSONL format)
+1. Locates Cortex Code conversation files
+2. Reads session history (JSON format)
 3. Counts tokens using `tiktoken` (offline, no API calls)
 4. Tracks input/output/cache tokens separately
-5. Identifies tool usage and token consumption per tool
-6. Calculates costs based on pricing table
-7. Generates formatted terminal output
+5. **Automatically calculates costs for all 3 models** (Haiku, Sonnet, Opus)
+6. Identifies tool usage and token consumption per tool
+7. Generates formatted terminal output with comparison
 
 **Output:** Rich terminal display with:
-- Token summary (input/output/cache)
-- Cost breakdown by token type
+- Token summary (input/output/cache counts)
+- **Cost comparison table** showing Haiku, Sonnet, and Opus pricing
+- **Cost multipliers** (e.g., "Opus costs 5.0x more than Sonnet")
 - Tool usage breakdown (top 10 tools)
-- Historical trends (if --all flag used)
+- Historical trends with per-model costs (if --all flag used)
 
-### Step 4: Present Results
+### Step 3: Present Results and Insights
 
 **Display** the analysis results to the user.
 
@@ -111,42 +82,59 @@ uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py \\
 
 1. **Session Overview**
    - Session ID
-   - Model used
    - Timestamp
 
-2. **Token Usage Table**
+2. **Token Usage** (model-independent)
    ```
-   Type            Count        Cost
-   ─────────────────────────────────
-   Input Tokens    45,230      $0.1357
-   Output Tokens   12,450      $0.1868
-   Cache Tokens    125,000     $0.0375
-   ─────────────────────────────────
-   Total           182,680     $0.3600
+   Type            Count
+   ─────────────────────
+   Input Tokens    1,992
+   Output Tokens   5,125
+   Cache Tokens        0
+   Total           7,117
    ```
 
-3. **Cost by Tool** (if breakdown requested)
+3. **Cost Comparison by Model** ⭐ NEW
+   ```
+   Model    Input Cost   Output Cost   Cache Cost   Total Cost
+   ──────────────────────────────────────────────────────────
+   Haiku      $0.0016       $0.0205      $0.0000      $0.0221
+   Sonnet     $0.0060       $0.0769      $0.0000      $0.0829
+   Opus       $0.0299       $0.3844      $0.0000      $0.4143
+   
+   💡 Opus costs 5.0x more than Sonnet
+   💡 Haiku costs 0.3x less than Sonnet
+   ```
+
+4. **Cost by Tool** (if breakdown requested)
    ```
    Tool                Calls    Tokens    Cost
    ────────────────────────────────────────────
    snowflake_sql       15       32,450    $0.0974
    read                42       28,120    $0.0844
-   bash                8        12,300    $0.0369
-   grep                5        8,200     $0.0246
    ...
    ```
 
-4. **Historical Summary** (if --all flag used)
-   - List of recent sessions
-   - Per-session costs
-   - Total spending across all sessions
+5. **Historical Summary** (if --all flag used)
+   ```
+   Session ID        Date         Tokens     Haiku    Sonnet      Opus
+   ───────────────────────────────────────────────────────────────────
+   abc123...         2026-03-07    7,128   $0.0221   $0.0830   $0.4151
+   def456...         2026-03-06   40,925   $0.0787   $0.2950   $1.4748
+   
+   Total: 72,957 tokens
+   Cost with Haiku:  $0.15
+   Cost with Sonnet: $0.58
+   Cost with Opus:   $2.88
+   ```
 
 **Interpret** results for user:
-- Highlight highest-cost operations
-- Identify optimization opportunities (e.g., cache more, use cheaper model)
-- Compare costs across sessions if relevant
+- Highlight cost differences between models
+- Show potential savings with Haiku
+- Show premium cost of Opus
+- Identify highest-cost operations
 
-### Step 5: Offer Export (Optional)
+### Step 4: Offer Export (Optional)
 
 **Ask** if user wants to export analysis to JSON:
 
@@ -158,7 +146,6 @@ Would you like to export this analysis to JSON for further processing? (yes/no)
 ```bash
 uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py \\
   --session <session_id> \\
-  --model <model_name> \\
   --json analysis_output.json
 ```
 
@@ -175,26 +162,27 @@ uv run --project <SKILL_DIR> python <SKILL_DIR>/scripts/analyze_costs.py [OPTION
 
 **Arguments:**
 - `--session <id>`: Specific session ID to analyze (default: most recent)
-- `--all`: Analyze all sessions (historical view)
-- `--model <name>`: Model used (default: claude-sonnet-4-5)
+- `--all`: Analyze all sessions (historical view with model comparison)
+- `--model <name>`: Filter to specific model (optional, shows all by default)
+- `--no-compare`: Disable model comparison (show single model only)
 - `--breakdown`: Show detailed tool breakdown
 - `--json <file>`: Export analysis to JSON file
 
 **Examples:**
 ```bash
-# Analyze current session
+# Analyze current session (shows Haiku/Sonnet/Opus comparison)
 uv run --project /path/to/skill python /path/to/skill/scripts/analyze_costs.py
 
-# Analyze specific session with Opus pricing
+# Analyze specific session
 uv run --project /path/to/skill python /path/to/skill/scripts/analyze_costs.py \\
-  --session abc123 --model claude-opus-4-5
+  --session abc123
 
-# Historical view with breakdown
+# Historical view with all model comparisons
 uv run --project /path/to/skill python /path/to/skill/scripts/analyze_costs.py \\
-  --all --breakdown
+  --all
 ```
 
-**When to use:** Anytime you need cost analysis
+**When to use:** Anytime you need cost analysis or model comparison
 **When NOT to use:** For real-time cost tracking during active session (this is post-session analysis)
 
 ## Pricing Table

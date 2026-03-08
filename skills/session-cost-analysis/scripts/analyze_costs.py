@@ -32,28 +32,82 @@ except ImportError:
     sys.exit(1)
 
 
-# Snowflake Cortex pricing (per 1M tokens) - as of March 2025
-# Source: https://www.snowflake.com/en/data-cloud/cortex/pricing/
+# Snowflake Cortex Code pricing - Table 6(g) from official docs
+# Source: Snowflake Service Consumption Table
+# These are CREDITS per 1M tokens (not dollars)
 PRICING = {
     "claude-sonnet-4-5": {
-        "input": 3.00,      # $3 per 1M input tokens
-        "output": 15.00,    # $15 per 1M output tokens
-        "cache": 0.30,      # $0.30 per 1M cache tokens (10% of input)
+        "input": 1.65,      # 1.65 credits per 1M input tokens
+        "output": 8.25,     # 8.25 credits per 1M output tokens
+        "cache_write": 2.07,  # 2.07 credits per 1M cache write tokens
+        "cache_read": 0.17,   # 0.17 credits per 1M cache read tokens
+    },
+    "claude-sonnet-4-6": {
+        "input": 1.65,
+        "output": 8.25,
+        "cache_write": 2.07,
+        "cache_read": 0.17,
     },
     "claude-opus-4-5": {
-        "input": 15.00,     # $15 per 1M input tokens
-        "output": 75.00,    # $75 per 1M output tokens
-        "cache": 1.50,      # $1.50 per 1M cache tokens
+        "input": 2.75,      # 2.75 credits per 1M input tokens
+        "output": 13.75,    # 13.75 credits per 1M output tokens
+        "cache_write": 3.44,  # 3.44 credits per 1M cache write tokens
+        "cache_read": 0.28,   # 0.28 credits per 1M cache read tokens
     },
-    "claude-haiku-4-5": {
-        "input": 0.80,      # $0.80 per 1M input tokens
-        "output": 4.00,     # $4 per 1M output tokens
-        "cache": 0.08,      # $0.08 per 1M cache tokens
+    "claude-opus-4-6": {
+        "input": 2.75,
+        "output": 13.75,
+        "cache_write": 3.44,
+        "cache_read": 0.28,
     },
-    "claude-4-sonnet": {  # Alias
+    "claude-4-sonnet": {
+        "input": 1.50,      # 1.50 credits per 1M input tokens
+        "output": 7.50,     # 7.50 credits per 1M output tokens
+        "cache_write": 1.88,  # 1.88 credits per 1M cache write tokens
+        "cache_read": 0.15,   # 0.15 credits per 1M cache read tokens
+    },
+    "openai-gpt-5.2": {
+        "input": 0.97,      # 0.97 credits per 1M input tokens
+        "output": 7.70,     # 7.70 credits per 1M output tokens
+        "cache_write": 0,     # No cache write for GPT
+        "cache_read": 0.10,   # 0.10 credits per 1M cache read tokens
+    },
+}
+
+# Note: Haiku is NOT available for Cortex Code (only for other Snowflake AI features)
+
+# Dollar pricing from Table 6(b) for REST API with Prompt Caching (AWS Global)
+# These are approximate dollar amounts that may vary by region
+PRICING_USD = {
+    "claude-sonnet-4-5": {
         "input": 3.00,
         "output": 15.00,
-        "cache": 0.30,
+        "cache_write": 3.75,
+        "cache_read": 0.30,
+    },
+    "claude-sonnet-4-6": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_write": 3.75,
+        "cache_read": 0.30,
+    },
+    "claude-opus-4-5": {
+        "input": 5.00,
+        "output": 25.00,
+        "cache_write": 6.25,
+        "cache_read": 0.50,
+    },
+    "claude-opus-4-6": {
+        "input": 5.00,
+        "output": 25.00,
+        "cache_write": 6.25,
+        "cache_read": 0.50,
+    },
+    "claude-4-sonnet": {
+        "input": 3.00,
+        "output": 15.00,
+        "cache_write": 3.75,
+        "cache_read": 0.30,
     },
 }
 
@@ -63,18 +117,30 @@ class TokenUsage:
     """Token usage for a single interaction"""
     input_tokens: int = 0
     output_tokens: int = 0
-    cache_tokens: int = 0
+    cache_write_tokens: int = 0
+    cache_read_tokens: int = 0
     
     def total(self) -> int:
-        return self.input_tokens + self.output_tokens + self.cache_tokens
+        return self.input_tokens + self.output_tokens + self.cache_write_tokens + self.cache_read_tokens
     
-    def cost(self, model: str) -> float:
-        """Calculate cost in dollars"""
+    def cost_credits(self, model: str) -> float:
+        """Calculate cost in Snowflake credits"""
         pricing = PRICING.get(model, PRICING["claude-sonnet-4-5"])
         return (
             (self.input_tokens / 1_000_000) * pricing["input"] +
             (self.output_tokens / 1_000_000) * pricing["output"] +
-            (self.cache_tokens / 1_000_000) * pricing["cache"]
+            (self.cache_write_tokens / 1_000_000) * pricing["cache_write"] +
+            (self.cache_read_tokens / 1_000_000) * pricing["cache_read"]
+        )
+    
+    def cost_usd(self, model: str) -> float:
+        """Calculate approximate cost in USD (varies by region)"""
+        pricing = PRICING_USD.get(model, PRICING_USD["claude-sonnet-4-5"])
+        return (
+            (self.input_tokens / 1_000_000) * pricing["input"] +
+            (self.output_tokens / 1_000_000) * pricing["output"] +
+            (self.cache_write_tokens / 1_000_000) * pricing["cache_write"] +
+            (self.cache_read_tokens / 1_000_000) * pricing["cache_read"]
         )
 
 
@@ -85,8 +151,11 @@ class ToolUsage:
     count: int
     tokens: TokenUsage
     
-    def cost(self, model: str) -> float:
-        return self.tokens.cost(model)
+    def cost_credits(self, model: str) -> float:
+        return self.tokens.cost_credits(model)
+    
+    def cost_usd(self, model: str) -> float:
+        return self.tokens.cost_usd(model)
 
 
 @dataclass
@@ -248,8 +317,10 @@ def parse_conversation_file(conversation_file: Path, model: str) -> SessionCostA
     # Use last_updated as timestamp
     timestamp = last_updated or created_at or datetime.now().isoformat()
     
-    # Calculate total cost
-    total_cost = total_tokens.cost(model)
+    # Calculate total cost (in credits)
+    # NOTE: Cortex Code doesn't log cache hits, so cache tokens remain at 0
+    # This gives a conservative estimate (assumes no caching benefit)
+    total_cost = total_tokens.cost_credits(model)
     
     # Build analysis
     analysis = SessionCostAnalysis(
@@ -283,28 +354,33 @@ def display_session_analysis(analysis: SessionCostAnalysis, console: Console, co
     
     token_table.add_row("Input Tokens", f"{analysis.total_tokens.input_tokens:,}")
     token_table.add_row("Output Tokens", f"{analysis.total_tokens.output_tokens:,}")
-    token_table.add_row("Cache Tokens", f"{analysis.total_tokens.cache_tokens:,}")
+    token_table.add_row("Cache Write Tokens", f"{analysis.total_tokens.cache_write_tokens:,}")
+    token_table.add_row("Cache Read Tokens", f"{analysis.total_tokens.cache_read_tokens:,}")
     token_table.add_row("[bold]Total[/bold]", f"[bold]{analysis.total_tokens.total():,}[/bold]")
     
     console.print(token_table)
     console.print()
+    console.print("[dim]ℹ️  Note: Cortex Code doesn't log cache hits, so cache tokens show as 0 (conservative estimate)[/dim]")
+    console.print()
     
     # Model comparison (if enabled)
     if compare_models:
-        comparison_table = Table(title="Cost Comparison by Model", box=box.SIMPLE)
+        comparison_table = Table(title="Cost Comparison: Sonnet vs Opus", box=box.SIMPLE)
         comparison_table.add_column("Model", style="cyan")
-        comparison_table.add_column("Input Cost", justify="right", style="yellow")
-        comparison_table.add_column("Output Cost", justify="right", style="yellow")
-        comparison_table.add_column("Cache Cost", justify="right", style="yellow")
-        comparison_table.add_column("Total Cost", justify="right", style="green")
+        comparison_table.add_column("Credits", justify="right", style="green")
+        comparison_table.add_column("USD (approx)", justify="right", style="magenta")
+        comparison_table.add_column("Breakdown", style="dim")
         
-        # Compare Haiku, Sonnet, and Opus
-        for model_name in ["claude-haiku-4-5", "claude-sonnet-4-5", "claude-opus-4-5"]:
+        # Compare Sonnet and Opus only (Haiku not available for Cortex Code)
+        for model_name in ["claude-sonnet-4-5", "claude-opus-4-5"]:
+            total_credits = analysis.total_tokens.cost_credits(model_name)
+            total_usd = analysis.total_tokens.cost_usd(model_name)
+            
+            # Breakdown details
             pricing = PRICING[model_name]
-            input_cost = (analysis.total_tokens.input_tokens / 1_000_000) * pricing['input']
-            output_cost = (analysis.total_tokens.output_tokens / 1_000_000) * pricing['output']
-            cache_cost = (analysis.total_tokens.cache_tokens / 1_000_000) * pricing['cache']
-            total = input_cost + output_cost + cache_cost
+            input_credits = (analysis.total_tokens.input_tokens / 1_000_000) * pricing['input']
+            output_credits = (analysis.total_tokens.output_tokens / 1_000_000) * pricing['output']
+            breakdown = f"In: {input_credits:.3f}cr, Out: {output_credits:.3f}cr"
             
             # Highlight based on model
             model_display = model_name.replace("claude-", "").replace("-4-5", "").title()
@@ -315,25 +391,26 @@ def display_session_analysis(analysis: SessionCostAnalysis, console: Console, co
             
             comparison_table.add_row(
                 model_display,
-                f"${input_cost:.4f}",
-                f"${output_cost:.4f}",
-                f"${cache_cost:.4f}",
-                f"[bold]${total:.4f}[/bold]"
+                f"[bold]{total_credits:.4f}[/bold]",
+                f"${total_usd:.4f}",
+                breakdown
             )
         
         console.print(comparison_table)
         console.print()
         
         # Show cost multipliers
-        sonnet_cost = analysis.total_tokens.cost("claude-sonnet-4-5")
-        opus_cost = analysis.total_tokens.cost("claude-opus-4-5")
-        haiku_cost = analysis.total_tokens.cost("claude-haiku-4-5")
+        sonnet_credits = analysis.total_tokens.cost_credits("claude-sonnet-4-5")
+        opus_credits = analysis.total_tokens.cost_credits("claude-opus-4-5")
+        sonnet_usd = analysis.total_tokens.cost_usd("claude-sonnet-4-5")
+        opus_usd = analysis.total_tokens.cost_usd("claude-opus-4-5")
         
-        if sonnet_cost > 0:
-            opus_multiplier = opus_cost / sonnet_cost
-            haiku_multiplier = haiku_cost / sonnet_cost
-            console.print(f"[dim]💡 Opus costs {opus_multiplier:.1f}x more than Sonnet[/dim]")
-            console.print(f"[dim]💡 Haiku costs {haiku_multiplier:.1f}x less than Sonnet[/dim]")
+        if sonnet_credits > 0:
+            opus_multiplier = opus_credits / sonnet_credits
+            credit_diff = opus_credits - sonnet_credits
+            usd_diff = opus_usd - sonnet_usd
+            console.print(f"[dim]💡 Opus costs {opus_multiplier:.1f}x more than Sonnet (+{credit_diff:.4f} credits / +${usd_diff:.2f})[/dim]")
+            console.print(f"[dim]💰 Dollar pricing shown is AWS Global (varies by region/contract)[/dim]")
             console.print()
     else:
         # Single model display (legacy)
@@ -341,23 +418,28 @@ def display_session_analysis(analysis: SessionCostAnalysis, console: Console, co
         
         cost_table = Table(title=f"Cost Breakdown ({analysis.model})", box=box.SIMPLE)
         cost_table.add_column("Type", style="cyan")
-        cost_table.add_column("Cost", justify="right", style="green")
+        cost_table.add_column("Credits", justify="right", style="green")
+        cost_table.add_column("USD (approx)", justify="right", style="magenta")
         
         cost_table.add_row(
             "Input Tokens",
-            f"${(analysis.total_tokens.input_tokens / 1_000_000) * pricing['input']:.4f}"
+            f"{(analysis.total_tokens.input_tokens / 1_000_000) * pricing['input']:.4f}",
+            f"${(analysis.total_tokens.input_tokens / 1_000_000) * PRICING_USD.get(analysis.model, PRICING_USD['claude-sonnet-4-5'])['input']:.4f}"
         )
         cost_table.add_row(
             "Output Tokens",
-            f"${(analysis.total_tokens.output_tokens / 1_000_000) * pricing['output']:.4f}"
+            f"{(analysis.total_tokens.output_tokens / 1_000_000) * pricing['output']:.4f}",
+            f"${(analysis.total_tokens.output_tokens / 1_000_000) * PRICING_USD.get(analysis.model, PRICING_USD['claude-sonnet-4-5'])['output']:.4f}"
         )
         cost_table.add_row(
             "Cache Tokens",
-            f"${(analysis.total_tokens.cache_tokens / 1_000_000) * pricing['cache']:.4f}"
+            f"{(analysis.total_tokens.cache_write_tokens / 1_000_000) * pricing['cache_write']:.4f}",
+            f"${(analysis.total_tokens.cache_write_tokens / 1_000_000) * PRICING_USD.get(analysis.model, PRICING_USD['claude-sonnet-4-5'])['cache_write']:.4f}"
         )
         cost_table.add_row(
             "[bold]Total[/bold]",
-            f"[bold green]${analysis.total_cost:.4f}[/bold green]"
+            f"[bold]{analysis.total_cost:.4f}[/bold]",
+            f"[bold]${analysis.total_tokens.cost_usd(analysis.model):.4f}[/bold]"
         )
         
         console.print(cost_table)
@@ -369,14 +451,16 @@ def display_session_analysis(analysis: SessionCostAnalysis, console: Console, co
         tool_table.add_column("Tool", style="cyan")
         tool_table.add_column("Calls", justify="right", style="yellow")
         tool_table.add_column("Tokens", justify="right", style="yellow")
-        tool_table.add_column("Cost", justify="right", style="green")
+        tool_table.add_column("Credits", justify="right", style="green")
+        tool_table.add_column("USD", justify="right", style="magenta")
         
         for tool in analysis.tool_breakdown[:10]:  # Top 10
             tool_table.add_row(
                 tool.tool_name,
                 f"{tool.count:,}",
                 f"{tool.tokens.total():,}",
-                f"${tool.cost(analysis.model):.4f}"
+                f"{tool.cost_credits(analysis.model):.4f}",
+                f"${tool.cost_usd(analysis.model):.4f}"
             )
         
         console.print(tool_table)
@@ -384,7 +468,7 @@ def display_session_analysis(analysis: SessionCostAnalysis, console: Console, co
 
 
 def analyze_multiple_sessions(conversations_dir: Path, model: str, console: Console):
-    """Analyze all sessions and show historical trends"""
+    """Analyze all sessions and show historical trends with Sonnet vs Opus comparison"""
     
     conversation_files = sorted(
         [f for f in conversations_dir.iterdir() if f.suffix == ".json"],
@@ -398,37 +482,74 @@ def analyze_multiple_sessions(conversations_dir: Path, model: str, console: Cons
     
     console.print(f"\n[cyan]Found {len(conversation_files)} conversations[/cyan]\n")
     
-    # Historical summary table
-    history_table = Table(title="Historical Sessions", box=box.SIMPLE)
+    # Historical summary table with model comparison
+    history_table = Table(title="Historical Sessions: Sonnet vs Opus", box=box.SIMPLE)
     history_table.add_column("Session ID", style="cyan")
-    history_table.add_column("Model", style="magenta")
     history_table.add_column("Date", style="blue")
-    history_table.add_column("Total Tokens", justify="right", style="yellow")
-    history_table.add_column("Cost", justify="right", style="green")
+    history_table.add_column("Tokens", justify="right", style="yellow")
+    history_table.add_column("Sonnet Credits", justify="right", style="cyan")
+    history_table.add_column("Opus Credits", justify="right", style="magenta")
+    history_table.add_column("Sonnet USD", justify="right", style="green")
     
-    total_cost = 0.0
     total_tokens = 0
+    total_sonnet_credits = 0.0
+    total_opus_credits = 0.0
+    total_sonnet_usd = 0.0
+    total_opus_usd = 0.0
     
     for conversation_file in conversation_files[:20]:  # Last 20 sessions
         try:
             analysis = parse_conversation_file(conversation_file, model)
             timestamp_date = analysis.timestamp.split("T")[0] if "T" in analysis.timestamp else analysis.timestamp[:10]
+            
+            # Calculate costs for both models
+            sonnet_credits = analysis.total_tokens.cost_credits("claude-sonnet-4-5")
+            opus_credits = analysis.total_tokens.cost_credits("claude-opus-4-5")
+            sonnet_usd = analysis.total_tokens.cost_usd("claude-sonnet-4-5")
+            opus_usd = analysis.total_tokens.cost_usd("claude-opus-4-5")
+            
             history_table.add_row(
                 analysis.session_id[:12] + "...",
-                analysis.model,
                 timestamp_date,
                 f"{analysis.total_tokens.total():,}",
-                f"${analysis.total_cost:.4f}"
+                f"{sonnet_credits:.4f}",
+                f"{opus_credits:.4f}",
+                f"${sonnet_usd:.2f}"
             )
-            total_cost += analysis.total_cost
+            
             total_tokens += analysis.total_tokens.total()
+            total_sonnet_credits += sonnet_credits
+            total_opus_credits += opus_credits
+            total_sonnet_usd += sonnet_usd
+            total_opus_usd += opus_usd
         except Exception as e:
             console.print(f"[red]Error analyzing {conversation_file.name}: {e}[/red]")
     
     console.print(history_table)
     console.print()
-    console.print(f"[bold]Total across all sessions:[/bold] {total_tokens:,} tokens = [bold green]${total_cost:.2f}[/bold green]")
+    
+    # Summary totals
+    summary_table = Table(title="Total Across All Sessions", box=box.ROUNDED)
+    summary_table.add_column("Metric", style="cyan")
+    summary_table.add_column("Credits", justify="right", style="green")
+    summary_table.add_column("USD (approx)", justify="right", style="magenta")
+    
+    summary_table.add_row("Total Tokens", f"[yellow]{total_tokens:,}[/yellow]", "")
+    summary_table.add_row("Sonnet Total", f"[bold cyan]{total_sonnet_credits:.2f}[/bold cyan]", f"${total_sonnet_usd:.2f}")
+    summary_table.add_row("Opus Total", f"[magenta]{total_opus_credits:.2f}[/magenta]", f"${total_opus_usd:.2f}")
+    
+    console.print(summary_table)
     console.print()
+    
+    # Show comparison
+    if total_sonnet_credits > 0:
+        opus_multiplier = total_opus_credits / total_sonnet_credits
+        credit_diff = total_opus_credits - total_sonnet_credits
+        usd_diff = total_opus_usd - total_sonnet_usd
+        
+        console.print(f"[dim]💡 Using Opus would cost +{credit_diff:.2f} credits / +${usd_diff:.2f} ({opus_multiplier:.1f}x more)[/dim]")
+        console.print(f"[dim]💰 Dollar pricing is AWS Global (varies by region/contract)[/dim]")
+        console.print()
 
 
 def main():
