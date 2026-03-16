@@ -2,6 +2,7 @@
 name: quality-check
 description: Runs security scans, linting, type checking, tests, and build verification before commits or PRs. Use when the user asks to "check code quality", "run tests", "verify code", "pre-flight check", "run lint", or before completing coding tasks or creating pull requests. Supports auto-fix for linting/formatting when user says "fix" or "apply fixes".
 allowed-tools: "*"
+composable_with: [deploy-multi-env, sql-review]
 ---
 
 # Quality Check

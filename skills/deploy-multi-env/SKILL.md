@@ -2,6 +2,7 @@
 name: deploy-multi-env
 description: Deploys Snowflake artifacts (Streamlit, SPCS, UDFs, tables) across dev → staging → prod with validation, testing, and rollback. Use when the user says "deploy to prod", "promote to staging", "multi-environment deployment", "deploy across accounts", or when deploying Streamlit apps, SPCS services, or UDFs to multiple environments.
 allowed-tools: "*"
+prereq_skills: [quality-check, snowflake-diagnose]
 ---
 
 # Deploy Multi-Env

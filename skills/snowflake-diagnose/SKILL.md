@@ -2,6 +2,7 @@
 name: snowflake-diagnose
 description: Diagnoses Snowflake connection failures, permission errors, warehouse issues, and object access problems. Use when the user reports "connection failed", "permission denied", "warehouse not responding", "can't access table", or asks to "debug Snowflake", "check Snowflake environment", or "troubleshoot Snowflake setup".
 allowed-tools: "*"
+composable_with: [deploy-multi-env, snowflake-optimize, rbac-audit]
 ---
 
 # Snowflake Diagnose

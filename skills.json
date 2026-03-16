@@ -1,0 +1,57 @@
+{
+  "version": "1.0",
+  "skills": [
+    {
+      "name": "quality-check",
+      "path": "skills/quality-check",
+      "description": "Security scans, linting, type checks, tests, build verification before commits/PRs",
+      "tier": "curated"
+    },
+    {
+      "name": "deploy-multi-env",
+      "path": "skills/deploy-multi-env",
+      "description": "Deploy Streamlit, SPCS, UDFs across dev → staging → prod",
+      "tier": "curated",
+      "prereq_skills": ["quality-check", "snowflake-diagnose"]
+    },
+    {
+      "name": "snowflake-diagnose",
+      "path": "skills/snowflake-diagnose",
+      "description": "Diagnose connection failures, permissions, warehouse issues",
+      "tier": "curated"
+    },
+    {
+      "name": "snowflake-optimize",
+      "path": "skills/snowflake-optimize",
+      "description": "Query performance, warehouse sizing, spilling, cache analysis",
+      "tier": "curated",
+      "composable_with": ["snowflake-diagnose"]
+    },
+    {
+      "name": "rbac-audit",
+      "path": "skills/rbac-audit",
+      "description": "Role and privilege analysis, over-privileged roles, least-privilege recommendations",
+      "tier": "curated"
+    },
+    {
+      "name": "cost-monitor",
+      "path": "skills/cost-monitor",
+      "description": "Credit consumption, expensive queries, warehouse cost analysis",
+      "tier": "curated",
+      "composable_with": ["snowflake-optimize"]
+    },
+    {
+      "name": "sql-review",
+      "path": "skills/sql-review",
+      "description": "SQL code review, Snowflake best practices, anti-pattern detection",
+      "tier": "curated",
+      "composable_with": ["quality-check", "snowflake-optimize"]
+    },
+    {
+      "name": "changelog-gen",
+      "path": "skills/changelog-gen",
+      "description": "Auto-generate changelogs from git history",
+      "tier": "curated"
+    }
+  ]
+}

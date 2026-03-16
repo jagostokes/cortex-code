@@ -2,6 +2,7 @@
 name: snowflake-optimize
 description: Analyzes Snowflake query performance, warehouse sizing, spilling, partition pruning, cache hit rates, and cost. Use when the user asks "why is this query slow", "optimize performance", "analyze query", "check warehouse utilization", "reduce costs", "memory spilling", or "improve cache hit rate".
 allowed-tools: "*"
+composable_with: [snowflake-diagnose, cost-monitor, sql-review]
 ---
 
 # Snowflake Optimize
