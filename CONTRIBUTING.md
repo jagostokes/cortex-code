@@ -51,3 +51,6 @@ Body: Markdown with workflow, instructions, output format, and "Do Not" sections
 ## Validation
 
 Run `./scripts/validate-skills.sh` (if available) to check frontmatter and structure.
+
+
+check
